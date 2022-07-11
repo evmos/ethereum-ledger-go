@@ -21,10 +21,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -83,22 +81,6 @@ type Wallet interface {
 	// the specified derivation path. If requested, the derived account will be added
 	// to the wallet's tracked account list.
 	Derive(path DerivationPath, pin bool) (Account, error)
-
-	// SelfDerive sets a base account derivation path from which the wallet attempts
-	// to discover non zero accounts and automatically add them to list of tracked
-	// accounts.
-	//
-	// Note, self derivation will increment the last component of the specified path
-	// opposed to descending into a child path to allow discovering accounts starting
-	// from non zero components.
-	//
-	// Some hardware wallets switched derivation paths through their evolution, so
-	// this method supports providing multiple bases to discover old user accounts
-	// too. Only the last base will be used to derive the next empty account.
-	//
-	// You can disable automatic account discovery by calling SelfDerive with a nil
-	// chain state reader.
-	SelfDerive(bases []DerivationPath, chain ethereum.ChainStateReader)
 
 	// SignData requests the wallet to sign the hash of the given data
 	// It looks up the account specified either solely via its address contained within,
@@ -167,10 +149,6 @@ type Backend interface {
 	// go, the same wallet might appear at a different positions in the list during
 	// subsequent retrievals.
 	Wallets() []Wallet
-
-	// Subscribe creates an async subscription to receive notifications when the
-	// backend detects the arrival or departure of a wallet.
-	Subscribe(sink chan<- WalletEvent) event.Subscription
 }
 
 // TextHash is a helper function that calculates a hash for the given message that can be
@@ -197,28 +175,4 @@ func TextAndHash(data []byte) ([]byte, string) {
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write([]byte(msg))
 	return hasher.Sum(nil), msg
-}
-
-// WalletEventType represents the different event types that can be fired by
-// the wallet subscription subsystem.
-type WalletEventType int
-
-const (
-	// WalletArrived is fired when a new wallet is detected either via USB or via
-	// a filesystem event in the keystore.
-	WalletArrived WalletEventType = iota
-
-	// WalletOpened is fired when a wallet is successfully opened with the purpose
-	// of starting any background processes such as automatic key derivation.
-	WalletOpened
-
-	// WalletDropped
-	WalletDropped
-)
-
-// WalletEvent is an event fired by an account backend when a wallet arrival or
-// departure is detected.
-type WalletEvent struct {
-	Wallet Wallet          // Wallet instance arrived or departed
-	Kind   WalletEventType // Event type that happened in the system
 }
