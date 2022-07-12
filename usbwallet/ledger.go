@@ -28,10 +28,10 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/evmos/ethereum-ledger-go/accounts"
 	"github.com/evmos/ethereum-ledger-go/common"
 	"github.com/evmos/ethereum-ledger-go/rlp"
+	"github.com/evmos/ethereum-ledger-go/types"
 )
 
 // ledgerOpcode is an enumeration encoding the supported Ledger opcodes.

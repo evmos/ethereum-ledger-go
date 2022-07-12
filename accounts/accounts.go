@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/evmos/ethereum-ledger-go/common"
+	"github.com/evmos/ethereum-ledger-go/types"
 	"golang.org/x/crypto/sha3"
 )
 

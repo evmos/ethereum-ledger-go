@@ -24,10 +24,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/evmos/ethereum-ledger-go/accounts"
 	"github.com/evmos/ethereum-ledger-go/common"
 	"github.com/evmos/ethereum-ledger-go/crypto"
+	"github.com/evmos/ethereum-ledger-go/types"
 	"github.com/karalabe/usb"
 )
 

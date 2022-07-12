@@ -22,7 +22,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/evmos/ethereum-ledger-go/common"
 )
 
 var (
@@ -68,7 +68,7 @@ func (tx *Transaction) setDecoded(inner TxData, size int) {
 	tx.inner = inner
 	tx.time = time.Now()
 	if size > 0 {
-		tx.size.Store(common.StorageSize(size))
+		tx.size.Store(StorageSize(size))
 	}
 }
 
@@ -80,7 +80,7 @@ type TxData interface {
 	copy() TxData // creates a deep copy and initializes all fields
 
 	chainID() *big.Int
-	accessList() AccessList
+	accessList() common.AccessList
 	data() []byte
 	gas() uint64
 	gasPrice() *big.Int
@@ -110,7 +110,7 @@ func (tx *Transaction) ChainId() *big.Int {
 func (tx *Transaction) Data() []byte { return tx.inner.data() }
 
 // AccessList returns the access list of the transaction.
-func (tx *Transaction) AccessList() AccessList { return tx.inner.accessList() }
+func (tx *Transaction) AccessList() common.AccessList { return tx.inner.accessList() }
 
 // Gas returns the gas limit of the transaction.
 func (tx *Transaction) Gas() uint64 { return tx.inner.gas() }
