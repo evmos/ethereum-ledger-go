@@ -68,3 +68,14 @@ type AccessTuple struct {
 	Address     Address `json:"address"        gencodec:"required"`
 	StorageKeys []Hash  `json:"storageKeys"    gencodec:"required"`
 }
+
+// CopyBytes returns an exact copy of the provided bytes.
+func CopyBytes(b []byte) (copiedBytes []byte) {
+	if b == nil {
+		return nil
+	}
+	copiedBytes = make([]byte, len(b))
+	copy(copiedBytes, b)
+
+	return
+}
