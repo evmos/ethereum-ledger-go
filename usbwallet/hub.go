@@ -24,16 +24,12 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/evmos/ethereum-ledger-go/accounts"
 	"github.com/karalabe/usb"
 )
 
 // LedgerScheme is the protocol scheme prefixing account and wallet URLs.
 const LedgerScheme = "ledger"
-
-// TrezorScheme is the protocol scheme prefixing account and wallet URLs.
-const TrezorScheme = "trezor"
 
 // refreshCycle is the maximum time between wallet refreshes (if USB hotplug
 // notifications don't work).
@@ -45,12 +41,12 @@ const refreshThrottling = 500 * time.Millisecond
 
 // Hub is a accounts.Backend that can find and handle generic USB hardware wallets.
 type Hub struct {
-	scheme     string                  // Protocol scheme prefixing account and wallet URLs.
-	vendorID   uint16                  // USB vendor identifier used for device discovery
-	productIDs []uint16                // USB product identifiers used for device discovery
-	usageID    uint16                  // USB usage page identifier used for macOS device discovery
-	endpointID int                     // USB endpoint identifier used for non-macOS device discovery
-	makeDriver func(log.Logger) driver // Factory method to construct a vendor specific driver
+	scheme     string        // Protocol scheme prefixing account and wallet URLs.
+	vendorID   uint16        // USB vendor identifier used for device discovery
+	productIDs []uint16      // USB product identifiers used for device discovery
+	usageID    uint16        // USB usage page identifier used for macOS device discovery
+	endpointID int           // USB endpoint identifier used for non-macOS device discovery
+	makeDriver func() driver // Factory method to construct a vendor specific driver
 
 	refreshed   time.Time               // Time instance when the list of wallets was last refreshed
 	wallets     []accounts.Wallet       // List of USB wallet devices currently tracking
@@ -86,19 +82,8 @@ func NewLedgerHub() (*Hub, error) {
 	}, 0xffa0, 0, newLedgerDriver)
 }
 
-// NewTrezorHubWithHID creates a new hardware wallet manager for Trezor devices.
-func NewTrezorHubWithHID() (*Hub, error) {
-	return newHub(TrezorScheme, 0x534c, []uint16{0x0001 /* Trezor HID */}, 0xff00, 0, newTrezorDriver)
-}
-
-// NewTrezorHubWithWebUSB creates a new hardware wallet manager for Trezor devices with
-// firmware version > 1.8.0
-func NewTrezorHubWithWebUSB() (*Hub, error) {
-	return newHub(TrezorScheme, 0x1209, []uint16{0x53c1 /* Trezor WebUSB */}, 0xffff /* No usage id on webusb, don't match unset (0) */, 0, newTrezorDriver)
-}
-
 // newHub creates a new hardware wallet manager for generic USB devices.
-func newHub(scheme string, vendorID uint16, productIDs []uint16, usageID uint16, endpointID int, makeDriver func(log.Logger) driver) (*Hub, error) {
+func newHub(scheme string, vendorID uint16, productIDs []uint16, usageID uint16, endpointID int, makeDriver func() driver) (*Hub, error) {
 	if !usb.Supported() {
 		return nil, errors.New("unsupported platform")
 	}
@@ -162,13 +147,10 @@ func (hub *Hub) refreshWallets() {
 	}
 	infos, err := usb.Enumerate(hub.vendorID, 0)
 	if err != nil {
-		failcount := atomic.AddUint32(&hub.enumFails, 1)
 		if runtime.GOOS == "linux" {
 			// See rationale before the enumeration why this is needed and only on Linux.
 			hub.commsLock.Unlock()
 		}
-		log.Error("Failed to enumerate USB devices", "hub", hub.scheme,
-			"vendor", hub.vendorID, "failcount", failcount, "err", err)
 		return
 	}
 	atomic.StoreUint32(&hub.enumFails, 0)
@@ -210,8 +192,7 @@ func (hub *Hub) refreshWallets() {
 		}
 		// If there are no more wallets or the device is before the next, wrap new wallet
 		if len(hub.wallets) == 0 || hub.wallets[0].URL().Cmp(url) > 0 {
-			logger := log.New("url", url)
-			wallet := &wallet{hub: hub, driver: hub.makeDriver(logger), url: &url, info: device, log: logger}
+			wallet := &wallet{hub: hub, driver: hub.makeDriver(), url: &url, info: device}
 
 			events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletArrived})
 			wallets = append(wallets, wallet)
