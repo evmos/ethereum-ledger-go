@@ -28,13 +28,10 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/evmos/ethereum-ledger-go/accounts"
+	"github.com/evmos/ethereum-ledger-go/common"
+	"github.com/evmos/ethereum-ledger-go/rlp"
 )
 
 // ledgerOpcode is an enumeration encoding the supported Ledger opcodes.
@@ -76,14 +73,11 @@ type ledgerDriver struct {
 	version [3]byte       // Current version of the Ledger firmware (zero if app is offline)
 	browser bool          // Flag whether the Ledger is in browser mode (reply channel mismatch)
 	failure error         // Any failure that would make the device unusable
-	log     log.Logger    // Contextual logger to tag the ledger with its id
 }
 
 // newLedgerDriver creates a new instance of a Ledger USB protocol driver.
-func newLedgerDriver(logger log.Logger) driver {
-	return &ledgerDriver{
-		log: logger,
-	}
+func newLedgerDriver() driver {
+	return &ledgerDriver{}
 }
 
 // Status implements usbwallet.driver, returning various states the Ledger can
@@ -363,7 +357,7 @@ func (w *ledgerDriver) ledgerSign(derivationPath []uint32, tx *types.Transaction
 		op = ledgerP1ContTransactionData
 	}
 	// Extract the Ethereum signature and do a sanity validation
-	if len(reply) != crypto.SignatureLength {
+	if len(reply) != common.SignatureLength {
 		return common.Address{}, nil, errors.New("reply lacks signature")
 	}
 	signature := append(reply[1:], reply[0])
@@ -442,7 +436,7 @@ func (w *ledgerDriver) ledgerSignTypedMessage(derivationPath []uint32, domainHas
 	}
 
 	// Extract the Ethereum signature and do a sanity validation
-	if len(reply) != crypto.SignatureLength {
+	if len(reply) != common.SignatureLength {
 		return nil, errors.New("reply lacks signature")
 	}
 	signature := append(reply[1:], reply[0])
@@ -508,7 +502,6 @@ func (w *ledgerDriver) ledgerExchange(opcode ledgerOpcode, p1 ledgerParam1, p2 l
 			apdu = nil
 		}
 		// Send over to the device
-		w.log.Trace("Data chunk sent to the Ledger", "chunk", hexutil.Bytes(chunk))
 		if _, err := w.device.Write(chunk); err != nil {
 			return nil, err
 		}
@@ -521,7 +514,6 @@ func (w *ledgerDriver) ledgerExchange(opcode ledgerOpcode, p1 ledgerParam1, p2 l
 		if _, err := io.ReadFull(w.device, chunk); err != nil {
 			return nil, err
 		}
-		w.log.Trace("Data chunk received from the Ledger", "chunk", hexutil.Bytes(chunk))
 
 		// Make sure the transport header matches
 		if chunk[0] != 0x01 || chunk[1] != 0x01 || chunk[2] != 0x05 {

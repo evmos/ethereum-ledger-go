@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/evmos/ethereum-ledger-go/accounts"
 	"github.com/evmos/ethereum-ledger-go/common"
+	"github.com/evmos/ethereum-ledger-go/crypto"
 	"github.com/karalabe/usb"
 )
 
