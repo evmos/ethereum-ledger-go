@@ -23,7 +23,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/evmos/ethereum-ledger-go/accounts"
 	"github.com/karalabe/usb"
 )
@@ -48,11 +47,8 @@ type Hub struct {
 	endpointID int           // USB endpoint identifier used for non-macOS device discovery
 	makeDriver func() driver // Factory method to construct a vendor specific driver
 
-	refreshed   time.Time               // Time instance when the list of wallets was last refreshed
-	wallets     []accounts.Wallet       // List of USB wallet devices currently tracking
-	updateFeed  event.Feed              // Event feed to notify wallet additions/removals
-	updateScope event.SubscriptionScope // Subscription scope tracking current live listeners
-	updating    bool                    // Whether the event notification loop is running
+	refreshed time.Time         // Time instance when the list of wallets was last refreshed
+	wallets   []accounts.Wallet // List of USB wallet devices currently tracking
 
 	quit chan chan error
 
@@ -171,10 +167,7 @@ func (hub *Hub) refreshWallets() {
 	// Transform the current list of wallets into the new one
 	hub.stateLock.Lock()
 
-	var (
-		wallets = make([]accounts.Wallet, 0, len(devices))
-		events  []accounts.WalletEvent
-	)
+	var wallets = make([]accounts.Wallet, 0, len(devices))
 
 	for _, device := range devices {
 		url := accounts.URL{Scheme: hub.scheme, Path: device.Path}
@@ -187,14 +180,12 @@ func (hub *Hub) refreshWallets() {
 				break
 			}
 			// Drop the stale and failed devices
-			events = append(events, accounts.WalletEvent{Wallet: hub.wallets[0], Kind: accounts.WalletDropped})
 			hub.wallets = hub.wallets[1:]
 		}
 		// If there are no more wallets or the device is before the next, wrap new wallet
 		if len(hub.wallets) == 0 || hub.wallets[0].URL().Cmp(url) > 0 {
 			wallet := &wallet{hub: hub, driver: hub.makeDriver(), url: &url, info: device}
 
-			events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletArrived})
 			wallets = append(wallets, wallet)
 			continue
 		}
@@ -205,56 +196,8 @@ func (hub *Hub) refreshWallets() {
 			continue
 		}
 	}
-	// Drop any leftover wallets and set the new batch
-	for _, wallet := range hub.wallets {
-		events = append(events, accounts.WalletEvent{Wallet: wallet, Kind: accounts.WalletDropped})
-	}
+
 	hub.refreshed = time.Now()
 	hub.wallets = wallets
 	hub.stateLock.Unlock()
-
-	// Fire all wallet events and return
-	for _, event := range events {
-		hub.updateFeed.Send(event)
-	}
-}
-
-// Subscribe implements accounts.Backend, creating an async subscription to
-// receive notifications on the addition or removal of USB wallets.
-func (hub *Hub) Subscribe(sink chan<- accounts.WalletEvent) event.Subscription {
-	// We need the mutex to reliably start/stop the update loop
-	hub.stateLock.Lock()
-	defer hub.stateLock.Unlock()
-
-	// Subscribe the caller and track the subscriber count
-	sub := hub.updateScope.Track(hub.updateFeed.Subscribe(sink))
-
-	// Subscribers require an active notification loop, start it
-	if !hub.updating {
-		hub.updating = true
-		go hub.updater()
-	}
-	return sub
-}
-
-// updater is responsible for maintaining an up-to-date list of wallets managed
-// by the USB hub, and for firing wallet addition/removal events.
-func (hub *Hub) updater() {
-	for {
-		// TODO: Wait for a USB hotplug event (not supported yet) or a refresh timeout
-		// <-hub.changes
-		time.Sleep(refreshCycle)
-
-		// Run the wallet refresher
-		hub.refreshWallets()
-
-		// If all our subscribers left, stop the updater
-		hub.stateLock.Lock()
-		if hub.updateScope.Count() == 0 {
-			hub.updating = false
-			hub.stateLock.Unlock()
-			return
-		}
-		hub.stateLock.Unlock()
-	}
 }
