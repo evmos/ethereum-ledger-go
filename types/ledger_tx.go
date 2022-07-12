@@ -6,8 +6,8 @@ import (
 	"github.com/evmos/ethereum-ledger-go/common"
 )
 
-// LegacyTx is the transaction data of regular Ethereum transactions.
-type LegacyTx struct {
+// LedgerTx is the transaction data of regular Ethereum transactions.
+type LedgerTx struct {
 	Nonce    uint64          // nonce of sender account
 	GasPrice *big.Int        // wei per gas
 	Gas      uint64          // gas limit
@@ -15,11 +15,12 @@ type LegacyTx struct {
 	Value    *big.Int        // wei amount
 	Data     []byte          // contract invocation input data
 	V, R, S  *big.Int        // signature values
+	ChainId  *big.Int        // optional param for EIP-155 signing
 }
 
 // copy creates a deep copy of the transaction data and initializes all fields.
-func (tx *LegacyTx) copy() TxData {
-	cpy := &LegacyTx{
+func (tx *LedgerTx) copy() TxData {
+	cpy := &LedgerTx{
 		Nonce: tx.Nonce,
 		To:    copyAddressPtr(tx.To),
 		Data:  common.CopyBytes(tx.Data),
@@ -50,22 +51,22 @@ func (tx *LegacyTx) copy() TxData {
 }
 
 // accessors for innerTx.
-func (tx *LegacyTx) txType() byte           { return LegacyTxType }
-func (tx *LegacyTx) chainID() *big.Int      { return deriveChainId(tx.V) }
-func (tx *LegacyTx) accessList() AccessList { return nil }
-func (tx *LegacyTx) data() []byte           { return tx.Data }
-func (tx *LegacyTx) gas() uint64            { return tx.Gas }
-func (tx *LegacyTx) gasPrice() *big.Int     { return tx.GasPrice }
-func (tx *LegacyTx) gasTipCap() *big.Int    { return tx.GasPrice }
-func (tx *LegacyTx) gasFeeCap() *big.Int    { return tx.GasPrice }
-func (tx *LegacyTx) value() *big.Int        { return tx.Value }
-func (tx *LegacyTx) nonce() uint64          { return tx.Nonce }
-func (tx *LegacyTx) to() *common.Address    { return tx.To }
+func (tx *LedgerTx) txType() byte                  { return 0 }
+func (tx *LedgerTx) chainID() *big.Int             { return common.DeriveChainId(tx.V) }
+func (tx *LedgerTx) accessList() common.AccessList { return nil }
+func (tx *LedgerTx) data() []byte                  { return tx.Data }
+func (tx *LedgerTx) gas() uint64                   { return tx.Gas }
+func (tx *LedgerTx) gasPrice() *big.Int            { return tx.GasPrice }
+func (tx *LedgerTx) gasTipCap() *big.Int           { return tx.GasPrice }
+func (tx *LedgerTx) gasFeeCap() *big.Int           { return tx.GasPrice }
+func (tx *LedgerTx) value() *big.Int               { return tx.Value }
+func (tx *LedgerTx) nonce() uint64                 { return tx.Nonce }
+func (tx *LedgerTx) to() *common.Address           { return tx.To }
 
-func (tx *LegacyTx) rawSignatureValues() (v, r, s *big.Int) {
+func (tx *LedgerTx) rawSignatureValues() (v, r, s *big.Int) {
 	return tx.V, tx.R, tx.S
 }
 
-func (tx *LegacyTx) setSignatureValues(chainID, v, r, s *big.Int) {
+func (tx *LedgerTx) setSignatureValues(chainID, v, r, s *big.Int) {
 	tx.V, tx.R, tx.S = v, r, s
 }
