@@ -164,6 +164,10 @@ func (w *ledgerDriver) SignTx(path accounts.DerivationPath, tx *types.Transactio
 		//lint:ignore ST1005 brand name displayed on the console
 		return common.Address{}, nil, fmt.Errorf("Ledger v%d.%d.%d doesn't support signing this transaction, please update to v1.0.3 at least", w.version[0], w.version[1], w.version[2])
 	}
+	// Allow chainID of zero to default to nil
+	if chainID.Cmp(big.NewInt(0)) == 0 {
+		chainID = nil
+	}
 	// All infos gathered and metadata checks out, request signing
 	return w.ledgerSign(path, tx, chainID)
 }
@@ -365,26 +369,28 @@ func (w *ledgerDriver) ledgerSign(derivationPath []uint32, tx *types.Transaction
 	}
 	signature := append(reply[1:], reply[0])
 
-	if chainID != nil {
-		signature[64] -= byte(chainID.Uint64()*2 + 35)
-	}
-
 	// Generate signature payload
 	r := signature[:32]
 	s := signature[32:64]
 	v := signature[64]
 
-	if sigrlp, err = rlp.EncodeToBytes([]interface{}{tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), r, s, v}); err != nil {
+	if sigrlp, err = rlp.EncodeToBytes([]interface{}{tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), v, r, s}); err != nil {
 		return common.Address{}, nil, err
 	}
 
-	// Return address from signature for verification later
-	pubkey, err := secp256k1.RecoverPubkey(crypto.Keccak256(txrlp), signature)
+	// Return address from signature to be verified later
+	var recV byte
+	if chainID == nil {
+		recV = v - byte(27)
+	} else {
+		recV = v - byte(chainID.Uint64()*2+35)
+	}
+	pubkey, err := secp256k1.RecoverPubkey(crypto.Keccak256(txrlp), append(r[:], append(s[:], recV)...))
 	if err != nil {
 		return common.Address{}, nil, err
 	}
 
-	sender := crypto.Keccak256(pubkey)[12:]
+	sender := crypto.Keccak256(pubkey[1:])[12:]
 	var addr common.Address
 	copy(addr[:], sender)
 

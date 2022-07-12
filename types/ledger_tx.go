@@ -15,7 +15,6 @@ type LedgerTx struct {
 	Value    *big.Int        // wei amount
 	Data     []byte          // contract invocation input data
 	V, R, S  *big.Int        // signature values
-	ChainId  *big.Int        // optional param for EIP-155 signing
 }
 
 // copy creates a deep copy of the transaction data and initializes all fields.

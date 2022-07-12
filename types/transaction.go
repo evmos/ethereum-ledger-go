@@ -57,9 +57,24 @@ type Transaction struct {
 }
 
 // NewTx creates a new transaction.
-func NewTx(inner TxData) *Transaction {
+func NewLedgerTx(
+	nonce uint64,
+	gasPrice *big.Int,
+	gas uint64,
+	to *common.Address,
+	value *big.Int,
+	data []byte,
+) *Transaction {
 	tx := new(Transaction)
-	tx.setDecoded(inner.copy(), 0)
+	ledgerTx := &LedgerTx{
+		Nonce:    nonce,
+		GasPrice: gasPrice,
+		Gas:      gas,
+		To:       to,
+		Value:    value,
+		Data:     data,
+	}
+	tx.setDecoded(ledgerTx, 0)
 	return tx
 }
 
