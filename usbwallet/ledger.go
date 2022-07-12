@@ -30,7 +30,9 @@ import (
 
 	"github.com/evmos/ethereum-ledger-go/accounts"
 	"github.com/evmos/ethereum-ledger-go/common"
+	"github.com/evmos/ethereum-ledger-go/crypto"
 	"github.com/evmos/ethereum-ledger-go/rlp"
+	"github.com/evmos/ethereum-ledger-go/secp256k1"
 	"github.com/evmos/ethereum-ledger-go/types"
 )
 
@@ -152,7 +154,7 @@ func (w *ledgerDriver) Derive(path accounts.DerivationPath) (common.Address, err
 // Note, if the version of the Ethereum application running on the Ledger wallet is
 // too old to sign EIP-155 transactions, but such is requested nonetheless, an error
 // will be returned opposed to silently signing in Homestead mode.
-func (w *ledgerDriver) SignTx(path accounts.DerivationPath, tx *types.Transaction, chainID *big.Int) (common.Address, *types.Transaction, error) {
+func (w *ledgerDriver) SignTx(path accounts.DerivationPath, tx *types.Transaction, chainID *big.Int) (common.Address, []byte, error) {
 	// If the Ethereum app doesn't run, abort
 	if w.offline() {
 		return common.Address{}, nil, accounts.ErrWalletClosed
@@ -313,7 +315,7 @@ func (w *ledgerDriver) ledgerDerive(derivationPath []uint32) (common.Address, er
 //   signature V | 1 byte
 //   signature R | 32 bytes
 //   signature S | 32 bytes
-func (w *ledgerDriver) ledgerSign(derivationPath []uint32, tx *types.Transaction, chainID *big.Int) (common.Address, *types.Transaction, error) {
+func (w *ledgerDriver) ledgerSign(derivationPath []uint32, tx *types.Transaction, chainID *big.Int) (common.Address, []byte, error) {
 	// Flatten the derivation path into the Ledger request
 	path := make([]byte, 1+4*len(derivationPath))
 	path[0] = byte(len(derivationPath))
@@ -322,8 +324,9 @@ func (w *ledgerDriver) ledgerSign(derivationPath []uint32, tx *types.Transaction
 	}
 	// Create the transaction RLP based on whether legacy or EIP155 signing was requested
 	var (
-		txrlp []byte
-		err   error
+		txrlp  []byte
+		sigrlp []byte
+		err    error
 	)
 	if chainID == nil {
 		if txrlp, err = rlp.EncodeToBytes([]interface{}{tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data()}); err != nil {
@@ -362,23 +365,30 @@ func (w *ledgerDriver) ledgerSign(derivationPath []uint32, tx *types.Transaction
 	}
 	signature := append(reply[1:], reply[0])
 
-	// Create the correct signer and signature transform based on the chain ID
-	var signer types.Signer
-	if chainID == nil {
-		signer = new(types.HomesteadSigner)
-	} else {
-		signer = types.NewEIP155Signer(chainID)
+	if chainID != nil {
 		signature[64] -= byte(chainID.Uint64()*2 + 35)
 	}
-	signed, err := tx.WithSignature(signer, signature)
+
+	// Generate signature payload
+	r := signature[:32]
+	s := signature[32:64]
+	v := signature[64]
+
+	if sigrlp, err = rlp.EncodeToBytes([]interface{}{tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), r, s, v}); err != nil {
+		return common.Address{}, nil, err
+	}
+
+	// Return address from signature for verification later
+	pubkey, err := secp256k1.RecoverPubkey(crypto.Keccak256(txrlp), signature)
 	if err != nil {
 		return common.Address{}, nil, err
 	}
-	sender, err := types.Sender(signer, signed)
-	if err != nil {
-		return common.Address{}, nil, err
-	}
-	return sender, signed, nil
+
+	sender := crypto.Keccak256(pubkey)[12:]
+	var addr common.Address
+	copy(addr[:], sender)
+
+	return addr, sigrlp, nil
 }
 
 // ledgerSignTypedMessage sends the transaction to the Ledger wallet, and waits for the user
