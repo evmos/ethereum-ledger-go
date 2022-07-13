@@ -28,6 +28,9 @@ func (a Address) Hex() string {
 	return string(a.checksumHex())
 }
 
+// Bytes gets the string representation of the underlying address.
+func (a Address) Bytes() []byte { return a[:] }
+
 // String implements fmt.Stringer.
 func (a Address) String() string {
 	return a.Hex()

@@ -430,3 +430,19 @@ func (w *wallet) SignTextWithPassphrase(account accounts.Account, passphrase str
 func (w *wallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
 	return w.SignTx(account, tx, chainID)
 }
+
+// SignTypedData signs a TypedData in EIP-712 format. This method is a wrapper
+// to call SignData after hashing and encoding the TypedData input
+func (w *wallet) SignTypedData(account accounts.Account, typedData types.TypedData) ([]byte, error) {
+	domainSeparator, err := typedData.HashStruct("EIP712Domain", typedData.Domain.Map())
+	if err != nil {
+		return nil, err
+	}
+	typedDataHash, err := typedData.HashStruct(typedData.PrimaryType, typedData.Message)
+	if err != nil {
+		return nil, err
+	}
+	rawData := []byte(fmt.Sprintf("\x19\x01%s%s", string(domainSeparator), string(typedDataHash)))
+
+	return w.SignData(account, "data/typed", rawData)
+}
