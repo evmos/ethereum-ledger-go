@@ -55,7 +55,7 @@ type driver interface {
 
 	// Derive sends a derivation request to the USB device and returns the Ethereum
 	// address located on that path.
-	Derive(path accounts.DerivationPath) (common.Address, error)
+	Derive(path accounts.DerivationPath) (common.Address, common.PublicKey, error)
 
 	// SignTx sends the transaction to the USB device and waits for the user to confirm
 	// or deny the transaction.
@@ -282,7 +282,7 @@ func (w *wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Accoun
 		return accounts.Account{}, accounts.ErrWalletClosed
 	}
 	<-w.commsLock // Avoid concurrent hardware access
-	address, err := w.driver.Derive(path)
+	address, publicKey, err := w.driver.Derive(path)
 	w.commsLock <- struct{}{}
 
 	w.stateLock.RUnlock()
@@ -292,8 +292,9 @@ func (w *wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Accoun
 		return accounts.Account{}, err
 	}
 	account := accounts.Account{
-		Address: address,
-		URL:     accounts.URL{Scheme: w.url.Scheme, Path: fmt.Sprintf("%s/%s", w.url.Path, path)},
+		Address:   address,
+		PublicKey: publicKey,
+		URL:       accounts.URL{Scheme: w.url.Scheme, Path: fmt.Sprintf("%s/%s", w.url.Path, path)},
 	}
 	if !pin {
 		return account, nil

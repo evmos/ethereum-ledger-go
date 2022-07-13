@@ -59,6 +59,10 @@ func TestLedgerSignTx(t *testing.T) {
 
 func TestLedgerSignEIP712(t *testing.T) {
 	wallet, account := initWallet(t)
+	log.Printf("Account public key: %v\n", account.PublicKey)
+	log.Printf("Account public key hex: %v\n", account.PublicKey.Hex())
+	log.Printf("Account address: %v\n", account.Address)
+
 	defer wallet.Close()
 
 	const primaryType = "Mail"
