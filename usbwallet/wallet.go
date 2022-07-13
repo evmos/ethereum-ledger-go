@@ -317,7 +317,7 @@ func (w *wallet) signHash(account accounts.Account, hash []byte) ([]byte, error)
 }
 
 // SignData signs keccak256(data). The mimetype parameter describes the type of data being signed
-func (w *wallet) SignData(account accounts.Account, mimeType string, data []byte) ([]byte, error) {
+func (w *wallet) signData(account accounts.Account, mimeType string, data []byte) ([]byte, error) {
 
 	// Unless we are doing 712 signing, simply dispatch to signHash
 	if !(mimeType == accounts.MimetypeTypedData && len(data) == 66 && data[0] == 0x19 && data[1] == 0x01) {
@@ -360,14 +360,7 @@ func (w *wallet) SignData(account accounts.Account, mimeType string, data []byte
 	return signature, nil
 }
 
-// SignDataWithPassphrase implements accounts.Wallet, attempting to sign the given
-// data with the given account using passphrase as extra authentication.
-// Since USB wallets don't rely on passphrases, these are silently ignored.
-func (w *wallet) SignDataWithPassphrase(account accounts.Account, passphrase, mimeType string, data []byte) ([]byte, error) {
-	return w.SignData(account, mimeType, data)
-}
-
-func (w *wallet) SignText(account accounts.Account, text []byte) ([]byte, error) {
+func (w *wallet) signText(account accounts.Account, text []byte) ([]byte, error) {
 	return w.signHash(account, accounts.TextHash(text))
 }
 
@@ -417,20 +410,6 @@ func (w *wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID
 	return signed, nil
 }
 
-// SignHashWithPassphrase implements accounts.Wallet, however signing arbitrary
-// data is not supported for Ledger wallets, so this method will always return
-// an error.
-func (w *wallet) SignTextWithPassphrase(account accounts.Account, passphrase string, text []byte) ([]byte, error) {
-	return w.SignText(account, accounts.TextHash(text))
-}
-
-// SignTxWithPassphrase implements accounts.Wallet, attempting to sign the given
-// transaction with the given account using passphrase as extra authentication.
-// Since USB wallets don't rely on passphrases, these are silently ignored.
-func (w *wallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
-	return w.SignTx(account, tx, chainID)
-}
-
 // SignTypedData signs a TypedData in EIP-712 format. This method is a wrapper
 // to call SignData after hashing and encoding the TypedData input
 func (w *wallet) SignTypedData(account accounts.Account, typedData types.TypedData) ([]byte, error) {
@@ -444,5 +423,5 @@ func (w *wallet) SignTypedData(account accounts.Account, typedData types.TypedDa
 	}
 	rawData := []byte(fmt.Sprintf("\x19\x01%s%s", string(domainSeparator), string(typedDataHash)))
 
-	return w.SignData(account, "data/typed", rawData)
+	return w.signData(account, "data/typed", rawData)
 }
