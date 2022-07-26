@@ -6,10 +6,10 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	ethLedger "github.com/evmos/ethereum-ledger-go"
 	"github.com/evmos/ethereum-ledger-go/accounts"
-	"github.com/evmos/ethereum-ledger-go/common/math"
-	"github.com/evmos/ethereum-ledger-go/types"
 )
 
 func initWallet(t *testing.T) (accounts.Wallet, accounts.Account) {
@@ -67,7 +67,7 @@ func TestLedgerSignEIP712(t *testing.T) {
 
 	const primaryType = "Mail"
 
-	domain := types.TypedDataDomain{
+	domain := apitypes.TypedDataDomain{
 		Name:              "Ether Mail",
 		Version:           "1",
 		ChainId:           math.NewHexOrDecimal256(1),
@@ -75,7 +75,7 @@ func TestLedgerSignEIP712(t *testing.T) {
 		Salt:              "",
 	}
 
-	domainTypes := types.Types{
+	domainTypes := apitypes.Types{
 		"EIP712Domain": {
 			{
 				Name: "name",
@@ -132,7 +132,7 @@ func TestLedgerSignEIP712(t *testing.T) {
 		"contents": "Hello, Bob!",
 	}
 
-	typedData := types.TypedData{
+	typedData := apitypes.TypedData{
 		Types:       domainTypes,
 		PrimaryType: primaryType,
 		Domain:      domain,

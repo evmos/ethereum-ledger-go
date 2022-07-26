@@ -3,7 +3,7 @@ package types
 import (
 	"math/big"
 
-	"github.com/evmos/ethereum-ledger-go/common"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // LedgerTx is the transaction data of regular Ethereum transactions.
@@ -50,17 +50,17 @@ func (tx *LedgerTx) copy() TxData {
 }
 
 // accessors for innerTx.
-func (tx *LedgerTx) txType() byte                  { return 0 }
-func (tx *LedgerTx) chainID() *big.Int             { return common.DeriveChainId(tx.V) }
-func (tx *LedgerTx) accessList() common.AccessList { return nil }
-func (tx *LedgerTx) data() []byte                  { return tx.Data }
-func (tx *LedgerTx) gas() uint64                   { return tx.Gas }
-func (tx *LedgerTx) gasPrice() *big.Int            { return tx.GasPrice }
-func (tx *LedgerTx) gasTipCap() *big.Int           { return tx.GasPrice }
-func (tx *LedgerTx) gasFeeCap() *big.Int           { return tx.GasPrice }
-func (tx *LedgerTx) value() *big.Int               { return tx.Value }
-func (tx *LedgerTx) nonce() uint64                 { return tx.Nonce }
-func (tx *LedgerTx) to() *common.Address           { return tx.To }
+func (tx *LedgerTx) txType() byte           { return 0 }
+func (tx *LedgerTx) chainID() *big.Int      { return deriveChainId(tx.V) }
+func (tx *LedgerTx) accessList() AccessList { return nil }
+func (tx *LedgerTx) data() []byte           { return tx.Data }
+func (tx *LedgerTx) gas() uint64            { return tx.Gas }
+func (tx *LedgerTx) gasPrice() *big.Int     { return tx.GasPrice }
+func (tx *LedgerTx) gasTipCap() *big.Int    { return tx.GasPrice }
+func (tx *LedgerTx) gasFeeCap() *big.Int    { return tx.GasPrice }
+func (tx *LedgerTx) value() *big.Int        { return tx.Value }
+func (tx *LedgerTx) nonce() uint64          { return tx.Nonce }
+func (tx *LedgerTx) to() *common.Address    { return tx.To }
 
 func (tx *LedgerTx) rawSignatureValues() (v, r, s *big.Int) {
 	return tx.V, tx.R, tx.S
@@ -68,4 +68,17 @@ func (tx *LedgerTx) rawSignatureValues() (v, r, s *big.Int) {
 
 func (tx *LedgerTx) setSignatureValues(chainID, v, r, s *big.Int) {
 	tx.V, tx.R, tx.S = v, r, s
+}
+
+// deriveChainId derives the chain id from the given v parameter
+func deriveChainId(v *big.Int) *big.Int {
+	if v.BitLen() <= 64 {
+		v := v.Uint64()
+		if v == 27 || v == 28 {
+			return new(big.Int)
+		}
+		return new(big.Int).SetUint64((v - 35) / 2)
+	}
+	v = new(big.Int).Sub(v, big.NewInt(35))
+	return v.Div(v, big.NewInt(2))
 }

@@ -24,9 +24,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/evmos/ethereum-ledger-go/accounts"
-	"github.com/evmos/ethereum-ledger-go/common"
-	"github.com/evmos/ethereum-ledger-go/crypto"
 	"github.com/evmos/ethereum-ledger-go/types"
 	"github.com/karalabe/usb"
 )
@@ -55,7 +56,7 @@ type driver interface {
 
 	// Derive sends a derivation request to the USB device and returns the Ethereum
 	// address located on that path.
-	Derive(path accounts.DerivationPath) (common.Address, common.PublicKey, error)
+	Derive(path accounts.DerivationPath) (common.Address, types.PublicKey, error)
 
 	// SignTx sends the transaction to the USB device and waits for the user to confirm
 	// or deny the transaction.
@@ -413,7 +414,7 @@ func (w *wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID
 
 // SignTypedData signs a TypedData in EIP-712 format. This method is a wrapper
 // to call SignData after hashing and encoding the TypedData input
-func (w *wallet) SignTypedData(account accounts.Account, typedData types.TypedData) ([]byte, error) {
+func (w *wallet) SignTypedData(account accounts.Account, typedData apitypes.TypedData) ([]byte, error) {
 	domainSeparator, err := typedData.HashStruct("EIP712Domain", typedData.Domain.Map())
 	if err != nil {
 		return nil, err

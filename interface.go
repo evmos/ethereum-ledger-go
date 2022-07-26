@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/evmos/ethereum-ledger-go/accounts"
-	"github.com/evmos/ethereum-ledger-go/common"
 	"github.com/evmos/ethereum-ledger-go/types"
 	"github.com/evmos/ethereum-ledger-go/usbwallet"
 )

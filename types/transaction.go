@@ -22,7 +22,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/evmos/ethereum-ledger-go/common"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 var (
@@ -40,6 +40,15 @@ const (
 	AccessListTxType
 	DynamicFeeTxType
 )
+
+// AccessList is an EIP-2930 access list.
+type AccessList []AccessTuple
+
+// AccessTuple is the element type of an access list.
+type AccessTuple struct {
+	Address     common.Address `json:"address"        gencodec:"required"`
+	StorageKeys []common.Hash  `json:"storageKeys"    gencodec:"required"`
+}
 
 // StorageSize is a wrapper around a float value that supports user friendly
 // formatting.
@@ -95,7 +104,7 @@ type TxData interface {
 	copy() TxData // creates a deep copy and initializes all fields
 
 	chainID() *big.Int
-	accessList() common.AccessList
+	accessList() AccessList
 	data() []byte
 	gas() uint64
 	gasPrice() *big.Int
@@ -125,7 +134,7 @@ func (tx *Transaction) ChainId() *big.Int {
 func (tx *Transaction) Data() []byte { return tx.inner.data() }
 
 // AccessList returns the access list of the transaction.
-func (tx *Transaction) AccessList() common.AccessList { return tx.inner.accessList() }
+func (tx *Transaction) AccessList() AccessList { return tx.inner.accessList() }
 
 // Gas returns the gas limit of the transaction.
 func (tx *Transaction) Gas() uint64 { return tx.inner.gas() }

@@ -28,11 +28,11 @@ import (
 	"io"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/evmos/ethereum-ledger-go/accounts"
-	"github.com/evmos/ethereum-ledger-go/common"
-	"github.com/evmos/ethereum-ledger-go/crypto"
-	"github.com/evmos/ethereum-ledger-go/rlp"
-	"github.com/evmos/ethereum-ledger-go/secp256k1"
 	"github.com/evmos/ethereum-ledger-go/types"
 )
 
@@ -144,7 +144,7 @@ func (w *ledgerDriver) Heartbeat() error {
 
 // Derive implements usbwallet.driver, sending a derivation request to the Ledger
 // and returning the Ethereum address located on that derivation path.
-func (w *ledgerDriver) Derive(path accounts.DerivationPath) (common.Address, common.PublicKey, error) {
+func (w *ledgerDriver) Derive(path accounts.DerivationPath) (common.Address, types.PublicKey, error) {
 	return w.ledgerDerive(path)
 }
 
@@ -253,7 +253,7 @@ func (w *ledgerDriver) ledgerVersion() ([3]byte, error) {
 //   Ethereum address length | 1 byte
 //   Ethereum address        | 40 bytes hex ascii
 //   Chain code if requested | 32 bytes
-func (w *ledgerDriver) ledgerDerive(derivationPath []uint32) (common.Address, common.PublicKey, error) {
+func (w *ledgerDriver) ledgerDerive(derivationPath []uint32) (common.Address, types.PublicKey, error) {
 	// Flatten the derivation path into the Ledger request
 	path := make([]byte, 1+4*len(derivationPath))
 	path[0] = byte(len(derivationPath))
@@ -263,11 +263,11 @@ func (w *ledgerDriver) ledgerDerive(derivationPath []uint32) (common.Address, co
 	// Send the request and wait for the response
 	reply, err := w.ledgerExchange(ledgerOpRetrieveAddress, ledgerP1DirectlyFetchAddress, ledgerP2DiscardAddressChainCode, path)
 	if err != nil {
-		return common.Address{}, common.PublicKey{}, err
+		return common.Address{}, types.PublicKey{}, err
 	}
 	// Verify public key was returned
 	if len(reply) < 1 || len(reply) < 1+int(reply[0]) {
-		return common.Address{}, common.PublicKey{}, errors.New("reply lacks public key entry")
+		return common.Address{}, types.PublicKey{}, errors.New("reply lacks public key entry")
 	}
 	pubkey := reply[2 : 1+int(reply[0])]
 
@@ -276,17 +276,17 @@ func (w *ledgerDriver) ledgerDerive(derivationPath []uint32) (common.Address, co
 
 	// Extract the Ethereum hex address string
 	if len(reply) < 1 || len(reply) < 1+int(reply[0]) {
-		return common.Address{}, common.PublicKey{}, errors.New("reply lacks address entry")
+		return common.Address{}, types.PublicKey{}, errors.New("reply lacks address entry")
 	}
 	hexstr := reply[1 : 1+int(reply[0])]
 
 	// Decode the hex sting into an Ethereum address and return
 	var address common.Address
 	if _, err = hex.Decode(address[:], hexstr); err != nil {
-		return common.Address{}, common.PublicKey{}, err
+		return common.Address{}, types.PublicKey{}, err
 	}
 	// Copy bytes into public key object and return
-	var publicKey common.PublicKey
+	var publicKey types.PublicKey
 	copy(publicKey[:], pubkey)
 
 	return address, publicKey, nil
@@ -371,7 +371,7 @@ func (w *ledgerDriver) ledgerSign(derivationPath []uint32, tx *types.Transaction
 		op = ledgerP1ContTransactionData
 	}
 	// Extract the Ethereum signature and do a sanity validation
-	if len(reply) != common.SignatureLength {
+	if len(reply) != crypto.SignatureLength {
 		return common.Address{}, nil, errors.New("reply lacks signature")
 	}
 	signature := append(reply[1:], reply[0])
@@ -459,7 +459,7 @@ func (w *ledgerDriver) ledgerSignTypedMessage(derivationPath []uint32, domainHas
 	}
 
 	// Extract the Ethereum signature and do a sanity validation
-	if len(reply) != common.SignatureLength {
+	if len(reply) != crypto.SignatureLength {
 		return nil, errors.New("reply lacks signature")
 	}
 	signature := append(reply[1:], reply[0])

@@ -21,7 +21,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/evmos/ethereum-ledger-go/common"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/evmos/ethereum-ledger-go/types"
 	"golang.org/x/crypto/sha3"
 )
@@ -29,9 +30,9 @@ import (
 // Account represents an Ethereum account located at a specific location defined
 // by the optional URL field.
 type Account struct {
-	Address   common.Address   `json:"address"` // Ethereum account address derived from the key
-	PublicKey common.PublicKey `json:"publicKey"`
-	URL       URL              `json:"url"` // Optional resource locator within a backend
+	Address   common.Address  `json:"address"` // Ethereum account address derived from the key
+	PublicKey types.PublicKey `json:"publicKey"`
+	URL       URL             `json:"url"` // Optional resource locator within a backend
 }
 
 const (
@@ -97,7 +98,7 @@ type Wallet interface {
 	SignTx(account Account, tx *types.Transaction, chainID *big.Int) ([]byte, error)
 
 	// Sign a TypedData object using EIP-712 encoding
-	SignTypedData(account Account, typedData types.TypedData) ([]byte, error)
+	SignTypedData(account Account, typedData apitypes.TypedData) ([]byte, error)
 }
 
 // Backend is a "wallet provider" that may contain a batch of accounts they can
