@@ -1,6 +1,6 @@
 # ethereum-ledger-go
 
-This package is a general-purpose Ethereum Ledger library adapted from [go-ethereum](https://github.com/ethereum/go-ethereum) for applications written in Go.
+This package is a general-purpose Ethereum Ledger library adapted from [go-ethereum](https://github.com/ethereum/go-ethereum) for applications written in Go. It is currently in Beta and experimental, with plans to be production-ready shortly.
 
 ## Usage
 
