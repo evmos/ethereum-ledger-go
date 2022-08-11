@@ -18,14 +18,17 @@
 package usbwallet
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
+	"reflect"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/evmos/ethereum-ledger-go/accounts"
 	"github.com/evmos/ethereum-ledger-go/types"
@@ -412,6 +415,33 @@ func (w *wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID
 	return signed, nil
 }
 
+func (w *wallet) verifyTypedDataSignature(account accounts.Account, rawData []byte, signature []byte) error {
+	// Copy signature as it would otherwise be modified
+	sigCopy := make([]byte, len(signature))
+	copy(sigCopy, signature)
+
+	r := sigCopy[:32]
+	s := sigCopy[32:64]
+	v := sigCopy[64]
+
+	// Subtract 27 to match ECDSA standard
+	recV := v - 27
+
+	pubkey, err := secp256k1.RecoverPubkey(crypto.Keccak256(rawData), append(r[:], append(s[:], recV)...))
+	if err != nil {
+		return err
+	}
+
+	// Truncate prefix to match account type
+	pubkey = pubkey[1:]
+
+	if !reflect.DeepEqual(pubkey, account.PublicKey.Bytes()) {
+		return errors.New("Invalid public key returned in signature")
+	}
+
+	return nil
+}
+
 // SignTypedData signs a TypedData in EIP-712 format. This method is a wrapper
 // to call SignData after hashing and encoding the TypedData input
 func (w *wallet) SignTypedData(account accounts.Account, typedData apitypes.TypedData) ([]byte, error) {
@@ -424,6 +454,16 @@ func (w *wallet) SignTypedData(account accounts.Account, typedData apitypes.Type
 		return nil, err
 	}
 	rawData := []byte(fmt.Sprintf("\x19\x01%s%s", string(domainSeparator), string(typedDataHash)))
+	sigBytes, err := w.signData(account, "data/typed", rawData)
 
-	return w.signData(account, "data/typed", rawData)
+	if err != nil {
+		return nil, err
+	}
+
+	// Verify recovered public key matches expected value
+	if err = w.verifyTypedDataSignature(account, rawData, sigBytes); err != nil {
+		return nil, errors.New(fmt.Sprintf("Signature verification failed, public key does not match: %v\n", err.Error()))
+	}
+
+	return sigBytes, nil
 }
