@@ -269,7 +269,7 @@ func (w *ledgerDriver) ledgerDerive(derivationPath []uint32) (common.Address, ty
 	if len(reply) < 1 || len(reply) < 1+int(reply[0]) {
 		return common.Address{}, types.PublicKey{}, errors.New("reply lacks public key entry")
 	}
-	pubkey := reply[2 : 1+int(reply[0])]
+	pubkey := reply[1 : 1+int(reply[0])]
 
 	// Discard pubkey after fetching
 	reply = reply[1+int(reply[0]):]

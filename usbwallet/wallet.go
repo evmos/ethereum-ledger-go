@@ -32,7 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/evmos/ethereum-ledger-go/accounts"
 	"github.com/evmos/ethereum-ledger-go/types"
-	"github.com/karalabe/usb"
+	usb "github.com/zondax/hid"
 )
 
 // Maximum time between wallet health checks to detect USB unplugs.
@@ -77,7 +77,7 @@ type wallet struct {
 	url    *accounts.URL // Textual URL uniquely identifying this wallet
 
 	info   usb.DeviceInfo // Known USB device infos about the wallet
-	device usb.Device     // USB device advertising itself as a hardware wallet
+	device *usb.Device    // USB device advertising itself as a hardware wallet
 
 	accounts []accounts.Account                         // List of derive accounts pinned on the hardware wallet
 	paths    map[common.Address]accounts.DerivationPath // Known derivation paths for signing operations
@@ -278,6 +278,8 @@ func (w *wallet) Contains(account accounts.Account) bool {
 // derivation path. If pin is set to true, the account will be added to the list
 // of tracked accounts.
 func (w *wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Account, error) {
+	formatPathIfNeeded(path)
+
 	// Try to derive the actual account and update its URL if successful
 	w.stateLock.RLock() // Avoid device disappearing during derivation
 
@@ -313,6 +315,16 @@ func (w *wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Accoun
 		copy(w.paths[address], path)
 	}
 	return account, nil
+}
+
+// Format the hd path to harden the first three values (purpose, coinType, account)
+// if needed, modifying the array in-place.
+func formatPathIfNeeded(path accounts.DerivationPath) {
+	for i := 0; i < 3; i++ {
+		if path[i] < 0x80000000 {
+			path[i] += 0x80000000
+		}
+	}
 }
 
 // signHash implements accounts.Wallet, however signing arbitrary data is not
@@ -431,9 +443,6 @@ func (w *wallet) verifyTypedDataSignature(account accounts.Account, rawData []by
 	if err != nil {
 		return err
 	}
-
-	// Truncate prefix to match account type
-	pubkey = pubkey[1:]
 
 	if !reflect.DeepEqual(pubkey, account.PublicKey.Bytes()) {
 		return errors.New("Invalid public key returned in signature")

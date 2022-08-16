@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/evmos/ethereum-ledger-go/accounts"
-	"github.com/karalabe/usb"
+	usb "github.com/zondax/hid"
 )
 
 // LedgerScheme is the protocol scheme prefixing account and wallet URLs.
@@ -141,8 +141,8 @@ func (hub *Hub) refreshWallets() {
 			return
 		}
 	}
-	infos, err := usb.Enumerate(hub.vendorID, 0)
-	if err != nil {
+	infos := usb.Enumerate(hub.vendorID, 0)
+	if infos == nil {
 		if runtime.GOOS == "linux" {
 			// See rationale before the enumeration why this is needed and only on Linux.
 			hub.commsLock.Unlock()

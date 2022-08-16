@@ -7,7 +7,7 @@ import (
 // Lengths of hashes and addresses in bytes.
 const (
 	// PublicKeyLength is the expected length of a public key
-	PublicKeyLength = 64
+	PublicKeyLength = 65
 )
 
 // Public Key represents the 40 byte address of an Ethereum public key

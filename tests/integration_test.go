@@ -166,7 +166,7 @@ func TestInitWallet(t *testing.T) {
 	}
 
 	t.Logf("Public Key: %v\n", account.PublicKey.Hex())
-	if account.PublicKey.Hex() != "0x5f53cbc346997423fe843e2ee6d24fd7832211000a65975ba81d53c87ad1e5c863a5adb3cb919014903f13a68c9a4682b56ff5df3db888a2cbc3dc8fae1ec0fb" {
+	if account.PublicKey.Hex() != "0x045f53cbc346997423fe843e2ee6d24fd7832211000a65975ba81d53c87ad1e5c863a5adb3cb919014903f13a68c9a4682b56ff5df3db888a2cbc3dc8fae1ec0fb" {
 		t.Errorf("Invalid public key for account")
 	}
 }
@@ -197,7 +197,7 @@ func TestAlternateDerivation(t *testing.T) {
 	wallet, account := initWallet(t, path)
 	defer wallet.Close()
 
-	if account.PublicKey.Hex() != "0x4a5236e77ab81e094d7c6cfeac06d2e93fec455d01c7f80e22c592a89b44acebe99c2450425a184e5382362d5c52f5d996f12e73ccfb7694227f31b501e36ed7" {
+	if account.PublicKey.Hex() != "0x044a5236e77ab81e094d7c6cfeac06d2e93fec455d01c7f80e22c592a89b44acebe99c2450425a184e5382362d5c52f5d996f12e73ccfb7694227f31b501e36ed7" {
 		t.Errorf("Account public key did not match expected %v\n", account.PublicKey.Hex())
 	}
 
