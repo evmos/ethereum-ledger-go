@@ -28,6 +28,7 @@ import (
 
 	gethaccounts "github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	coretypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -64,7 +65,7 @@ type driver interface {
 
 	// SignTx sends the transaction to the USB device and waits for the user to confirm
 	// or deny the transaction.
-	SignTx(path gethaccounts.DerivationPath, tx *types.Transaction, chainID *big.Int) (common.Address, []byte, error)
+	SignTx(path gethaccounts.DerivationPath, tx *coretypes.Transaction, chainID *big.Int) (common.Address, []byte, error)
 
 	SignTypedMessage(path gethaccounts.DerivationPath, messageHash []byte, domainHash []byte) ([]byte, error)
 }
@@ -388,7 +389,7 @@ func (w *wallet) signText(account accounts.Account, text []byte) ([]byte, error)
 // Note, if the version of the Ethereum application running on the Ledger wallet is
 // too old to sign EIP-155 transactions, but such is requested nonetheless, an error
 // will be returned opposed to silently signing in Homestead mode.
-func (w *wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
+func (w *wallet) SignTx(account accounts.Account, tx *coretypes.Transaction, chainID *big.Int) ([]byte, error) {
 	w.stateLock.RLock() // Comms have own mutex, this is for the state fields
 	defer w.stateLock.RUnlock()
 

@@ -30,6 +30,7 @@ import (
 
 	gethaccounts "github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	coretypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -154,7 +155,7 @@ func (w *ledgerDriver) Derive(path gethaccounts.DerivationPath) (common.Address,
 // Note, if the version of the Ethereum application running on the Ledger wallet is
 // too old to sign EIP-155 transactions, but such is requested nonetheless, an error
 // will be returned opposed to silently signing in Homestead mode.
-func (w *ledgerDriver) SignTx(path gethaccounts.DerivationPath, tx *types.Transaction, chainID *big.Int) (common.Address, []byte, error) {
+func (w *ledgerDriver) SignTx(path gethaccounts.DerivationPath, tx *coretypes.Transaction, chainID *big.Int) (common.Address, []byte, error) {
 	// If the Ethereum app doesn't run, abort
 	if w.offline() {
 		return common.Address{}, nil, gethaccounts.ErrWalletClosed
@@ -326,7 +327,7 @@ func (w *ledgerDriver) ledgerDerive(derivationPath []uint32) (common.Address, ty
 //	signature V | 1 byte
 //	signature R | 32 bytes
 //	signature S | 32 bytes
-func (w *ledgerDriver) ledgerSign(derivationPath []uint32, tx *types.Transaction, chainID *big.Int) (common.Address, []byte, error) {
+func (w *ledgerDriver) ledgerSign(derivationPath []uint32, tx *coretypes.Transaction, chainID *big.Int) (common.Address, []byte, error) {
 	// Flatten the derivation path into the Ledger request
 	path := make([]byte, 1+4*len(derivationPath))
 	path[0] = byte(len(derivationPath))

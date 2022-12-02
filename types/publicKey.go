@@ -10,6 +10,8 @@ const (
 	PublicKeyLength = 65
 )
 
+// TODO: use PubKey from geth
+
 // Public Key represents the 40 byte address of an Ethereum public key
 type PublicKey [PublicKeyLength]byte
 

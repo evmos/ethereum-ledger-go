@@ -1,4 +1,4 @@
-package ledger
+package ledger_test
 
 import (
 	"encoding/hex"
@@ -12,8 +12,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
-	ethLedger "github.com/evmos/ethereum-ledger-go"
+	ledger "github.com/evmos/ethereum-ledger-go"
 	"github.com/evmos/ethereum-ledger-go/accounts"
+	"github.com/stretchr/testify/require"
 )
 
 // Test Mnemonic:
@@ -23,7 +24,7 @@ import (
 
 func initWallet(t *testing.T, path gethaccounts.DerivationPath) (accounts.Wallet, accounts.Account) {
 	t.Helper()
-	ledger, err := ethLedger.New()
+	ledger, err := ledger.New()
 	if err != nil {
 		panic("Could not create new Ledger hub")
 	}
@@ -114,11 +115,11 @@ func createTypedDataPayload(message map[string]interface{}) apitypes.TypedData {
 func TestSanityCreateTx(t *testing.T) {
 	addr := "0x3535353535353535353535353535353535353535"
 
-	tx := ethLedger.CreateTx(
+	tx, err := ledger.CreateTx(
 		3,               // Nonce
-		big.NewInt(10),  // GasPrice
-		10,              // Gas
 		addr,            // To
+		10,              // Gas
+		big.NewInt(10),  // GasPrice
 		big.NewInt(10),  // Value
 		make([]byte, 0), // Data
 	)
@@ -179,13 +180,13 @@ func TestInvalidAccount(t *testing.T) {
 	account.Address = common.HexToAddress("0x3535353535353535353535353535353535353535")
 
 	sendAddr := "0x3636363636363636363636363636363636363636"
-	tx := ethLedger.CreateTx(
-		3, big.NewInt(10), 10, sendAddr, big.NewInt(10), make([]byte, 0),
+	tx, err := ledger.CreateTx(
+		3, sendAddr, 10, big.NewInt(10), big.NewInt(10), make([]byte, 0),
 	)
-	_, err := wallet.SignTx(account, tx, big.NewInt(0))
-	if err == nil {
-		t.Errorf("Expected error on signing with invalid account")
-	}
+	require.NoError(t, err)
+
+	_, err = wallet.SignTx(account, tx, big.NewInt(0))
+	require.Error(t, err, "Expected error on signing with invalid account")
 }
 
 // Test deriving an account with path "m/44'/60'/0'/0/1"
@@ -213,7 +214,7 @@ func TestLedgerSignTx1(t *testing.T) {
 
 	addr := "0x3535353535353535353535353535353535353535"
 
-	tx := ethLedger.CreateTx(
+	tx := ledger.CreateTx(
 		3, big.NewInt(10), 10, addr, big.NewInt(10), make([]byte, 0),
 	)
 
@@ -238,7 +239,7 @@ func TestLedgerSignTx2(t *testing.T) {
 
 	addr := "0x4646464646464646464646464646464646464646"
 
-	tx := ethLedger.CreateTx(
+	tx := ledger.CreateTx(
 		8, big.NewInt(5), 50, addr, big.NewInt(70), []byte{4, 6, 8, 10},
 	)
 
@@ -264,7 +265,7 @@ func TestLedgerSignTx3(t *testing.T) {
 
 	addr := "0x4646464646464646464646464646464646464646"
 
-	tx := ethLedger.CreateTx(
+	tx := ledger.CreateTx(
 		8, big.NewInt(5), 50, addr, big.NewInt(70), []byte{4, 6, 8, 10},
 	)
 
@@ -294,7 +295,7 @@ func TestLedgerSignTx4(t *testing.T) {
 	defer wallet.Close()
 
 	sendAddr := "0x4646464646464646464646464646464646464646"
-	tx := ethLedger.CreateTx(
+	tx := ledger.CreateTx(
 		8, big.NewInt(5), 50, sendAddr, big.NewInt(70), []byte{4, 6, 8, 10},
 	)
 
