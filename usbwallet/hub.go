@@ -23,6 +23,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	gethaccounts "github.com/ethereum/go-ethereum/accounts"
 	"github.com/evmos/ethereum-ledger-go/accounts"
 	usb "github.com/zondax/hid"
 )
@@ -176,10 +177,10 @@ func (hub *Hub) refreshWallets() {
 	// Transform the current list of wallets into the new one
 	hub.stateLock.Lock()
 
-	var wallets = make([]accounts.Wallet, 0, len(devices))
+	wallets := make([]accounts.Wallet, 0, len(devices))
 
 	for _, device := range devices {
-		url := accounts.URL{Scheme: hub.scheme, Path: device.Path}
+		url := gethaccounts.URL{Scheme: hub.scheme, Path: device.Path}
 
 		// Drop wallets in front of the next device or those that failed for some reason
 		for len(hub.wallets) > 0 {

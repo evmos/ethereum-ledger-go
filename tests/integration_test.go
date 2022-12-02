@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	gethaccounts "github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -20,7 +21,7 @@ import (
 // cycle abandon accident logic again around mix dial knee organ episode usual
 // (24 words)
 
-func initWallet(t *testing.T, path accounts.DerivationPath) (accounts.Wallet, accounts.Account) {
+func initWallet(t *testing.T, path gethaccounts.DerivationPath) (accounts.Wallet, accounts.Account) {
 	t.Helper()
 	ledger, err := ethLedger.New()
 	if err != nil {
@@ -111,7 +112,7 @@ func createTypedDataPayload(message map[string]interface{}) apitypes.TypedData {
 
 // Test transaction is generated correctly using CreateTx
 func TestSanityCreateTx(t *testing.T) {
-	var addr = "0x3535353535353535353535353535353535353535"
+	addr := "0x3535353535353535353535353535353535353535"
 
 	tx := ethLedger.CreateTx(
 		3,               // Nonce
@@ -157,7 +158,7 @@ func TestSanityCreateTx(t *testing.T) {
 }
 
 func TestInitWallet(t *testing.T) {
-	wallet, account := initWallet(t, accounts.DefaultBaseDerivationPath)
+	wallet, account := initWallet(t, gethaccounts.DefaultBaseDerivationPath)
 	defer wallet.Close()
 
 	t.Logf("Account: %v\n", account.Address.Hex())
@@ -172,12 +173,12 @@ func TestInitWallet(t *testing.T) {
 }
 
 func TestInvalidAccount(t *testing.T) {
-	wallet, account := initWallet(t, accounts.DefaultBaseDerivationPath)
+	wallet, account := initWallet(t, gethaccounts.DefaultBaseDerivationPath)
 	defer wallet.Close()
 
 	account.Address = common.HexToAddress("0x3535353535353535353535353535353535353535")
 
-	var sendAddr = "0x3636363636363636363636363636363636363636"
+	sendAddr := "0x3636363636363636363636363636363636363636"
 	tx := ethLedger.CreateTx(
 		3, big.NewInt(10), 10, sendAddr, big.NewInt(10), make([]byte, 0),
 	)
@@ -189,7 +190,7 @@ func TestInvalidAccount(t *testing.T) {
 
 // Test deriving an account with path "m/44'/60'/0'/0/1"
 func TestAlternateDerivation(t *testing.T) {
-	path, err := accounts.ParseDerivationPath("m/44'/60'/0'/0/1")
+	path, err := gethaccounts.ParseDerivationPath("m/44'/60'/0'/0/1")
 	if err != nil {
 		panic("Could not parse derivation path")
 	}
@@ -207,10 +208,10 @@ func TestAlternateDerivation(t *testing.T) {
 }
 
 func TestLedgerSignTx1(t *testing.T) {
-	wallet, account := initWallet(t, accounts.DefaultBaseDerivationPath)
+	wallet, account := initWallet(t, gethaccounts.DefaultBaseDerivationPath)
 	defer wallet.Close()
 
-	var addr = "0x3535353535353535353535353535353535353535"
+	addr := "0x3535353535353535353535353535353535353535"
 
 	tx := ethLedger.CreateTx(
 		3, big.NewInt(10), 10, addr, big.NewInt(10), make([]byte, 0),
@@ -232,10 +233,10 @@ func TestLedgerSignTx1(t *testing.T) {
 }
 
 func TestLedgerSignTx2(t *testing.T) {
-	wallet, account := initWallet(t, accounts.DefaultBaseDerivationPath)
+	wallet, account := initWallet(t, gethaccounts.DefaultBaseDerivationPath)
 	defer wallet.Close()
 
-	var addr = "0x4646464646464646464646464646464646464646"
+	addr := "0x4646464646464646464646464646464646464646"
 
 	tx := ethLedger.CreateTx(
 		8, big.NewInt(5), 50, addr, big.NewInt(70), []byte{4, 6, 8, 10},
@@ -258,10 +259,10 @@ func TestLedgerSignTx2(t *testing.T) {
 
 // Test signing a transaction with a different ChainID
 func TestLedgerSignTx3(t *testing.T) {
-	wallet, account := initWallet(t, accounts.DefaultBaseDerivationPath)
+	wallet, account := initWallet(t, gethaccounts.DefaultBaseDerivationPath)
 	defer wallet.Close()
 
-	var addr = "0x4646464646464646464646464646464646464646"
+	addr := "0x4646464646464646464646464646464646464646"
 
 	tx := ethLedger.CreateTx(
 		8, big.NewInt(5), 50, addr, big.NewInt(70), []byte{4, 6, 8, 10},
@@ -284,7 +285,7 @@ func TestLedgerSignTx3(t *testing.T) {
 
 // Test signing a transaction from an alternate (not default) derivation path
 func TestLedgerSignTx4(t *testing.T) {
-	path, err := accounts.ParseDerivationPath("m/44'/60'/0'/0/1")
+	path, err := gethaccounts.ParseDerivationPath("m/44'/60'/0'/0/1")
 	if err != nil {
 		panic("Could not parse derivation path")
 	}
@@ -292,7 +293,7 @@ func TestLedgerSignTx4(t *testing.T) {
 	wallet, account := initWallet(t, path)
 	defer wallet.Close()
 
-	var sendAddr = "0x4646464646464646464646464646464646464646"
+	sendAddr := "0x4646464646464646464646464646464646464646"
 	tx := ethLedger.CreateTx(
 		8, big.NewInt(5), 50, sendAddr, big.NewInt(70), []byte{4, 6, 8, 10},
 	)
@@ -311,7 +312,7 @@ func TestLedgerSignTx4(t *testing.T) {
 }
 
 func TestLedgerSignTyped1(t *testing.T) {
-	wallet, account := initWallet(t, accounts.DefaultBaseDerivationPath)
+	wallet, account := initWallet(t, gethaccounts.DefaultBaseDerivationPath)
 	defer wallet.Close()
 
 	messageStandard := map[string]interface{}{
@@ -341,7 +342,7 @@ func TestLedgerSignTyped1(t *testing.T) {
 }
 
 func TestLedgerSignTyped2(t *testing.T) {
-	wallet, account := initWallet(t, accounts.DefaultBaseDerivationPath)
+	wallet, account := initWallet(t, gethaccounts.DefaultBaseDerivationPath)
 	defer wallet.Close()
 
 	messageStandard := map[string]interface{}{
@@ -372,7 +373,7 @@ func TestLedgerSignTyped2(t *testing.T) {
 
 // Test signing TypedData from a non-default derivation path
 func TestLedgerSignTyped3(t *testing.T) {
-	path, err := accounts.ParseDerivationPath("m/44'/60'/0'/0/1")
+	path, err := gethaccounts.ParseDerivationPath("m/44'/60'/0'/0/1")
 	if err != nil {
 		panic("Could not parse derivation path")
 	}
