@@ -1,14 +1,12 @@
 package ledger
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/big"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	coretypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/evmos/ethereum-ledger-go/accounts"
-	"github.com/evmos/ethereum-ledger-go/types"
 	"github.com/evmos/ethereum-ledger-go/usbwallet"
 )
 
@@ -33,29 +31,24 @@ func New() (*EthereumLedger, error) {
 
 func CreateTx(
 	nonce uint64,
-	gasPrice *big.Int,
-	gas uint64,
 	to string,
-	value *big.Int,
+	gas uint64,
+	gasPrice *big.Int,
+	amount *big.Int,
 	data []byte,
-) *types.Transaction {
-	addrBytes, err := hex.DecodeString(strings.TrimPrefix(to, "0x"))
-	if err != nil {
-		panic(fmt.Sprintf("Could not convert \"to\" field to bytes with error: %v\n", err.Error()))
-	}
-	if len(addrBytes) != 20 {
-		panic(fmt.Sprintf("Improper size of \"to\" field, got %v, expected 20\n", len(addrBytes)))
+) (*coretypes.Transaction, error) {
+	if !common.IsHexAddress(to) {
+		return nil, fmt.Errorf("invalid 'to' address: %s", to)
 	}
 
-	var addrObj = &common.Address{}
-	copy(addrObj[:], addrBytes)
+	toAddr := common.HexToAddress(to)
 
-	return types.NewLedgerTx(
+	return coretypes.NewTransaction(
 		nonce,
-		gasPrice,
+		toAddr,
+		amount,
 		gas,
-		addrObj,
-		value,
+		gasPrice,
 		data,
-	)
+	), nil
 }

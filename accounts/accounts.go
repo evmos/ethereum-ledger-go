@@ -18,29 +18,22 @@
 package accounts
 
 import (
-	"fmt"
 	"math/big"
 
+	gethaccounts "github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	coretypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/evmos/ethereum-ledger-go/types"
-	"golang.org/x/crypto/sha3"
 )
 
 // Account represents an Ethereum account located at a specific location defined
 // by the optional URL field.
 type Account struct {
-	Address   common.Address  `json:"address"` // Ethereum account address derived from the key
-	PublicKey types.PublicKey `json:"publicKey"`
-	URL       URL             `json:"url"` // Optional resource locator within a backend
+	Address   common.Address   `json:"address"` // Ethereum account address derived from the key
+	PublicKey types.PublicKey  `json:"publicKey"`
+	URL       gethaccounts.URL `json:"url"` // Optional resource locator within a backend
 }
-
-const (
-	MimetypeDataWithValidator = "data/validator"
-	MimetypeTypedData         = "data/typed"
-	MimetypeClique            = "application/x-clique-header"
-	MimetypeTextPlain         = "text/plain"
-)
 
 // Wallet represents a software or hardware wallet that might contain one or more
 // accounts (derived from the same seed).
@@ -48,7 +41,7 @@ type Wallet interface {
 	// URL retrieves the canonical path under which this wallet is reachable. It is
 	// used by upper layers to define a sorting order over all wallets from multiple
 	// backends.
-	URL() URL
+	URL() gethaccounts.URL
 
 	// Status returns a textual status to aid the user in the current state of the
 	// wallet. It also returns an error indicating any failure the wallet might have
@@ -82,7 +75,7 @@ type Wallet interface {
 	// Derive attempts to explicitly derive a hierarchical deterministic account at
 	// the specified derivation path. If requested, the derived account will be added
 	// to the wallet's tracked account list.
-	Derive(path DerivationPath, pin bool) (Account, error)
+	Derive(path gethaccounts.DerivationPath, pin bool) (Account, error)
 
 	// SignTx requests the wallet to sign the given transaction.
 	//
@@ -95,7 +88,7 @@ type Wallet interface {
 	// about which fields or actions are needed. The user may retry by providing
 	// the needed details via SignTxWithPassphrase, or by other means (e.g. unlock
 	// the account in a keystore).
-	SignTx(account Account, tx *types.Transaction, chainID *big.Int) ([]byte, error)
+	SignTx(account Account, tx *coretypes.Transaction, chainID *big.Int) ([]byte, error)
 
 	// Sign a TypedData object using EIP-712 encoding
 	SignTypedData(account Account, typedData apitypes.TypedData) ([]byte, error)
@@ -115,30 +108,4 @@ type Backend interface {
 	// go, the same wallet might appear at a different positions in the list during
 	// subsequent retrievals.
 	Wallets() []Wallet
-}
-
-// TextHash is a helper function that calculates a hash for the given message that can be
-// safely used to calculate a signature from.
-//
-// The hash is calculated as
-//   keccak256("\x19Ethereum Signed Message:\n"${message length}${message}).
-//
-// This gives context to the signed message and prevents signing of transactions.
-func TextHash(data []byte) []byte {
-	hash, _ := TextAndHash(data)
-	return hash
-}
-
-// TextAndHash is a helper function that calculates a hash for the given message that can be
-// safely used to calculate a signature from.
-//
-// The hash is calculated as
-//   keccak256("\x19Ethereum Signed Message:\n"${message length}${message}).
-//
-// This gives context to the signed message and prevents signing of transactions.
-func TextAndHash(data []byte) ([]byte, string) {
-	msg := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), string(data))
-	hasher := sha3.NewLegacyKeccak256()
-	hasher.Write([]byte(msg))
-	return hasher.Sum(nil), msg
 }

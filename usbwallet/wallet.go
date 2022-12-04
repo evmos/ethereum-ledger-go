@@ -26,7 +26,9 @@ import (
 	"sync"
 	"time"
 
+	gethaccounts "github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	coretypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
@@ -59,28 +61,28 @@ type driver interface {
 
 	// Derive sends a derivation request to the USB device and returns the Ethereum
 	// address located on that path.
-	Derive(path accounts.DerivationPath) (common.Address, types.PublicKey, error)
+	Derive(path gethaccounts.DerivationPath) (common.Address, types.PublicKey, error)
 
 	// SignTx sends the transaction to the USB device and waits for the user to confirm
 	// or deny the transaction.
-	SignTx(path accounts.DerivationPath, tx *types.Transaction, chainID *big.Int) (common.Address, []byte, error)
+	SignTx(path gethaccounts.DerivationPath, tx *coretypes.Transaction, chainID *big.Int) (common.Address, []byte, error)
 
-	SignTypedMessage(path accounts.DerivationPath, messageHash []byte, domainHash []byte) ([]byte, error)
+	SignTypedMessage(path gethaccounts.DerivationPath, messageHash []byte, domainHash []byte) ([]byte, error)
 }
 
 // wallet represents the common functionality shared by all USB hardware
 // wallets to prevent reimplementing the same complex maintenance mechanisms
 // for different vendors.
 type wallet struct {
-	hub    *Hub          // USB hub scanning
-	driver driver        // Hardware implementation of the low level device operations
-	url    *accounts.URL // Textual URL uniquely identifying this wallet
+	hub    *Hub              // USB hub scanning
+	driver driver            // Hardware implementation of the low level device operations
+	url    *gethaccounts.URL // Textual URL uniquely identifying this wallet
 
 	info   usb.DeviceInfo // Known USB device infos about the wallet
 	device *usb.Device    // USB device advertising itself as a hardware wallet
 
-	accounts []accounts.Account                         // List of derive accounts pinned on the hardware wallet
-	paths    map[common.Address]accounts.DerivationPath // Known derivation paths for signing operations
+	accounts []accounts.Account                             // List of derive accounts pinned on the hardware wallet
+	paths    map[common.Address]gethaccounts.DerivationPath // Known derivation paths for signing operations
 
 	healthQuit chan chan error
 
@@ -108,7 +110,7 @@ type wallet struct {
 }
 
 // URL implements accounts.Wallet, returning the URL of the USB hardware device.
-func (w *wallet) URL() accounts.URL {
+func (w *wallet) URL() gethaccounts.URL {
 	return *w.url // Immutable, no need for a lock
 }
 
@@ -133,7 +135,7 @@ func (w *wallet) Open(passphrase string) error {
 
 	// If the device was already opened once, refuse to try again
 	if w.paths != nil {
-		return accounts.ErrWalletAlreadyOpen
+		return gethaccounts.ErrWalletAlreadyOpen
 	}
 	// Make sure the actual device connection is done only once
 	if w.device == nil {
@@ -150,7 +152,7 @@ func (w *wallet) Open(passphrase string) error {
 		return err
 	}
 	// Connection successful, start life-cycle management
-	w.paths = make(map[common.Address]accounts.DerivationPath)
+	w.paths = make(map[common.Address]gethaccounts.DerivationPath)
 
 	w.healthQuit = make(chan chan error)
 
@@ -277,7 +279,7 @@ func (w *wallet) Contains(account accounts.Account) bool {
 // Derive implements accounts.Wallet, deriving a new account at the specific
 // derivation path. If pin is set to true, the account will be added to the list
 // of tracked accounts.
-func (w *wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Account, error) {
+func (w *wallet) Derive(path gethaccounts.DerivationPath, pin bool) (accounts.Account, error) {
 	formatPathIfNeeded(path)
 
 	// Try to derive the actual account and update its URL if successful
@@ -285,7 +287,7 @@ func (w *wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Accoun
 
 	if w.device == nil {
 		w.stateLock.RUnlock()
-		return accounts.Account{}, accounts.ErrWalletClosed
+		return accounts.Account{}, gethaccounts.ErrWalletClosed
 	}
 	<-w.commsLock // Avoid concurrent hardware access
 	address, publicKey, err := w.driver.Derive(path)
@@ -300,7 +302,7 @@ func (w *wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Accoun
 	account := accounts.Account{
 		Address:   address,
 		PublicKey: publicKey,
-		URL:       accounts.URL{Scheme: w.url.Scheme, Path: fmt.Sprintf("%s/%s", w.url.Path, path)},
+		URL:       gethaccounts.URL{Scheme: w.url.Scheme, Path: fmt.Sprintf("%s/%s", w.url.Path, path)},
 	}
 	if !pin {
 		return account, nil
@@ -311,7 +313,7 @@ func (w *wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Accoun
 
 	if _, ok := w.paths[address]; !ok {
 		w.accounts = append(w.accounts, account)
-		w.paths[address] = make(accounts.DerivationPath, len(path))
+		w.paths[address] = make(gethaccounts.DerivationPath, len(path))
 		copy(w.paths[address], path)
 	}
 	return account, nil
@@ -319,7 +321,7 @@ func (w *wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Accoun
 
 // Format the hd path to harden the first three values (purpose, coinType, account)
 // if needed, modifying the array in-place.
-func formatPathIfNeeded(path accounts.DerivationPath) {
+func formatPathIfNeeded(path gethaccounts.DerivationPath) {
 	for i := 0; i < 3; i++ {
 		if path[i] < 0x80000000 {
 			path[i] += 0x80000000
@@ -330,14 +332,13 @@ func formatPathIfNeeded(path accounts.DerivationPath) {
 // signHash implements accounts.Wallet, however signing arbitrary data is not
 // supported for hardware wallets, so this method will always return an error.
 func (w *wallet) signHash(account accounts.Account, hash []byte) ([]byte, error) {
-	return nil, accounts.ErrNotSupported
+	return nil, gethaccounts.ErrNotSupported
 }
 
 // SignData signs keccak256(data). The mimetype parameter describes the type of data being signed
 func (w *wallet) signData(account accounts.Account, mimeType string, data []byte) ([]byte, error) {
-
 	// Unless we are doing 712 signing, simply dispatch to signHash
-	if !(mimeType == accounts.MimetypeTypedData && len(data) == 66 && data[0] == 0x19 && data[1] == 0x01) {
+	if !(mimeType == gethaccounts.MimetypeTypedData && len(data) == 66 && data[0] == 0x19 && data[1] == 0x01) {
 		return w.signHash(account, crypto.Keccak256(data))
 	}
 
@@ -347,12 +348,12 @@ func (w *wallet) signData(account accounts.Account, mimeType string, data []byte
 
 	// If the wallet is closed, abort
 	if w.device == nil {
-		return nil, accounts.ErrWalletClosed
+		return nil, gethaccounts.ErrWalletClosed
 	}
 	// Make sure the requested account is contained within
 	path, ok := w.paths[account.Address]
 	if !ok {
-		return nil, accounts.ErrUnknownAccount
+		return nil, gethaccounts.ErrUnknownAccount
 	}
 	// All infos gathered and metadata checks out, request signing
 	<-w.commsLock
@@ -378,7 +379,7 @@ func (w *wallet) signData(account accounts.Account, mimeType string, data []byte
 }
 
 func (w *wallet) signText(account accounts.Account, text []byte) ([]byte, error) {
-	return w.signHash(account, accounts.TextHash(text))
+	return w.signHash(account, gethaccounts.TextHash(text))
 }
 
 // SignTx implements accounts.Wallet. It sends the transaction over to the Ledger
@@ -388,18 +389,18 @@ func (w *wallet) signText(account accounts.Account, text []byte) ([]byte, error)
 // Note, if the version of the Ethereum application running on the Ledger wallet is
 // too old to sign EIP-155 transactions, but such is requested nonetheless, an error
 // will be returned opposed to silently signing in Homestead mode.
-func (w *wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) ([]byte, error) {
+func (w *wallet) SignTx(account accounts.Account, tx *coretypes.Transaction, chainID *big.Int) ([]byte, error) {
 	w.stateLock.RLock() // Comms have own mutex, this is for the state fields
 	defer w.stateLock.RUnlock()
 
 	// If the wallet is closed, abort
 	if w.device == nil {
-		return nil, accounts.ErrWalletClosed
+		return nil, gethaccounts.ErrWalletClosed
 	}
 	// Make sure the requested account is contained within
 	path, ok := w.paths[account.Address]
 	if !ok {
-		return nil, accounts.ErrUnknownAccount
+		return nil, gethaccounts.ErrUnknownAccount
 	}
 	// All infos gathered and metadata checks out, request signing
 	<-w.commsLock
@@ -464,7 +465,6 @@ func (w *wallet) SignTypedData(account accounts.Account, typedData apitypes.Type
 	}
 	rawData := []byte(fmt.Sprintf("\x19\x01%s%s", string(domainSeparator), string(typedDataHash)))
 	sigBytes, err := w.signData(account, "data/typed", rawData)
-
 	if err != nil {
 		return nil, err
 	}
