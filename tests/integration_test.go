@@ -25,7 +25,7 @@ func initWallet(t *testing.T, path gethaccounts.DerivationPath) (accounts.Wallet
 	ledger, err := ledger.New()
 	require.NoError(t, err)
 
-	require.NotEqual(t, len(ledger.Wallets()), 0)
+	require.NotZero(t, len(ledger.Wallets()))
 
 	wallet := ledger.Wallets()[0]
 	err = wallet.Open("")
@@ -132,10 +132,7 @@ func TestInitWallet(t *testing.T) {
 	wallet, account := initWallet(t, gethaccounts.DefaultBaseDerivationPath)
 	defer wallet.Close()
 
-	t.Logf("Account: %v\n", account.Address.Hex())
 	require.Equal(t, account.Address.Hex(), "0xbcf6368dF2C2999893064aDe8C4a4b1b6d3C077B")
-
-	t.Logf("Public Key: %v\n", account.PublicKey.Hex())
 	require.Equal(t, account.PublicKey.Hex(), "0x045f53cbc346997423fe843e2ee6d24fd7832211000a65975ba81d53c87ad1e5c863a5adb3cb919014903f13a68c9a4682b56ff5df3db888a2cbc3dc8fae1ec0fb")
 }
 
@@ -182,7 +179,6 @@ func TestLedgerSignTx1(t *testing.T) {
 	require.NoError(t, err)
 
 	sigHex := hex.EncodeToString(sigBytes)
-	t.Logf("Signed bytes: %v\n", sigHex)
 
 	// Test against signature generated using ethers.js
 	require.Equal(t, sigHex, "f85d030a0a9435353535353535353535353535353535353535350a801ca02e0b1b0ed24cd450488eb783e6c64ab0f1d681641970aef062434513731e829ca0721e7b6feedc989a8b114f3f622d5a525095b893b8ce81059e682f7333be3508")
@@ -203,7 +199,6 @@ func TestLedgerSignTx2(t *testing.T) {
 	require.NoError(t, err)
 
 	sigHex := hex.EncodeToString(sigBytes)
-	t.Logf("Signed bytes: %v\n", sigHex)
 
 	// Test against signature generated using ethers.js
 	require.Equal(t, sigHex, "f86108053294464646464646464646464646464646464646464646840406080a1ba0a2120857c6a2f9a2cabe59845b4e3925daf5d13394de52f87f2942f2ba4f9de3a031ecb1178393d2b6b4220eda7876f9a719498f4269f6444dfc5c270baec070cc")
@@ -225,7 +220,6 @@ func TestLedgerSignTx3(t *testing.T) {
 	require.NoError(t, err)
 
 	sigHex := hex.EncodeToString(sigBytes)
-	t.Logf("Signed bytes: %v\n", sigHex)
 
 	// Test against signature generated using ethers.js
 	require.Equal(t, sigHex, "f86108053294464646464646464646464646464646464646464646840406080a26a0da90a513f9ecb1726bc0e77a88f3b1def3f468e41fd3d3f182703085e1b48feca017743f2d3cb4e4b5090e7bd70357a6c4d1b5bfd79531f47669b9a085b530ef37")
@@ -278,7 +272,6 @@ func TestLedgerSignTyped1(t *testing.T) {
 	require.NoError(t, err)
 
 	sigHex := hex.EncodeToString(sigBytes)
-	t.Logf("Signature: %v\n", sigHex)
 
 	require.Equal(t, sigHex, "fb35835539608d309ee5ee4b3dfbbc8cb4b591d7e8c9c745473848cbe1e13b037278226e2d6962b3b19145147314d9872ff853437e3ebd654d44aace09128acd1c")
 }
@@ -305,7 +298,6 @@ func TestLedgerSignTyped2(t *testing.T) {
 	require.NoError(t, err)
 
 	sigHex := hex.EncodeToString(sigBytes)
-	t.Logf("Signature: %v\n", sigHex)
 
 	require.Equal(t, sigHex, "d929a56d69a98f3e491828fbd1555e66ddde17c8928a69704e710a9c34db1ab80314ffccf7014be6c8f819ca9c9603d59aad58cddaa1e6f43c7f66a6b9183c681c")
 }
@@ -338,7 +330,6 @@ func TestLedgerSignTyped3(t *testing.T) {
 	require.NoError(t, err)
 
 	sigHex := hex.EncodeToString(sigBytes)
-	t.Logf("Signature: %v\n", sigHex)
 
 	require.Equal(t, sigHex, "76984ce659f841975bdab7762ed9cb3c936791d1dcded3c0554147fca7accfdc543313669dcda04350990884e9e10c382fb20b722c123409a97c42ef6df617ca1c")
 }
