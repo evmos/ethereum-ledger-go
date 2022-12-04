@@ -131,10 +131,12 @@ func (hub *Hub) refreshWallets() {
 	if elapsed < refreshThrottling {
 		return
 	}
+
 	// If USB enumeration is continually failing, don't keep trying indefinitely
 	if atomic.LoadUint32(&hub.enumFails) > 2 {
 		return
 	}
+
 	// Retrieve the current list of USB wallet devices
 	var devices []usb.DeviceInfo
 
@@ -170,31 +172,42 @@ func (hub *Hub) refreshWallets() {
 			}
 		}
 	}
+
 	if runtime.GOOS == "linux" {
 		// See rationale before the enumeration why this is needed and only on Linux.
 		hub.commsLock.Unlock()
 	}
+
 	// Transform the current list of wallets into the new one
 	hub.stateLock.Lock()
 
 	wallets := make([]accounts.Wallet, 0, len(devices))
 
 	for _, device := range devices {
-		url := gethaccounts.URL{Scheme: hub.scheme, Path: device.Path}
+		url := gethaccounts.URL{
+			Scheme: hub.scheme,
+			Path:   device.Path,
+		}
 
 		// Drop wallets in front of the next device or those that failed for some reason
 		for len(hub.wallets) > 0 {
 			// Abort if we're past the current device and found an operational one
-			_, failure := hub.wallets[0].Status()
-			if hub.wallets[0].URL().Cmp(url) >= 0 || failure == nil {
+			_, err := hub.wallets[0].Status()
+			if hub.wallets[0].URL().Cmp(url) >= 0 || err == nil {
 				break
 			}
 			// Drop the stale and failed devices
 			hub.wallets = hub.wallets[1:]
 		}
+
 		// If there are no more wallets or the device is before the next, wrap new wallet
 		if len(hub.wallets) == 0 || hub.wallets[0].URL().Cmp(url) > 0 {
-			wallet := &wallet{hub: hub, driver: hub.makeDriver(), url: &url, info: device}
+			wallet := &wallet{
+				hub:    hub,
+				driver: hub.makeDriver(),
+				url:    &url,
+				info:   device,
+			}
 
 			wallets = append(wallets, wallet)
 			continue

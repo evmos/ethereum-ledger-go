@@ -2,6 +2,7 @@ package ledger_test
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"strings"
 	"testing"
@@ -9,7 +10,10 @@ import (
 	gethaccounts "github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	coretypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
+
 	ledger "github.com/evmos/ethereum-ledger-go"
 	"github.com/evmos/ethereum-ledger-go/accounts"
 	"github.com/stretchr/testify/require"
@@ -105,7 +109,7 @@ func createTypedDataPayload(message map[string]interface{}) apitypes.TypedData {
 func TestSanityCreateTx(t *testing.T) {
 	addr := "0x3535353535353535353535353535353535353535"
 
-	tx, err := ledger.CreateTx(
+	tx, err := CreateTx(
 		3,               // Nonce
 		addr,            // To
 		10,              // Gas
@@ -132,8 +136,10 @@ func TestInitWallet(t *testing.T) {
 	wallet, account := initWallet(t, gethaccounts.DefaultBaseDerivationPath)
 	defer wallet.Close()
 
+	pk := hex.EncodeToString(crypto.FromECDSAPub(account.PublicKey))
+
 	require.Equal(t, account.Address.Hex(), "0xbcf6368dF2C2999893064aDe8C4a4b1b6d3C077B")
-	require.Equal(t, account.PublicKey.Hex(), "0x045f53cbc346997423fe843e2ee6d24fd7832211000a65975ba81d53c87ad1e5c863a5adb3cb919014903f13a68c9a4682b56ff5df3db888a2cbc3dc8fae1ec0fb")
+	require.Equal(t, pk, "0x045f53cbc346997423fe843e2ee6d24fd7832211000a65975ba81d53c87ad1e5c863a5adb3cb919014903f13a68c9a4682b56ff5df3db888a2cbc3dc8fae1ec0fb")
 }
 
 func TestInvalidAccount(t *testing.T) {
@@ -143,7 +149,7 @@ func TestInvalidAccount(t *testing.T) {
 	account.Address = common.HexToAddress("0x3535353535353535353535353535353535353535")
 
 	sendAddr := "0x3636363636363636363636363636363636363636"
-	tx, err := ledger.CreateTx(
+	tx, err := CreateTx(
 		3, sendAddr, 10, big.NewInt(10), big.NewInt(10), make([]byte, 0),
 	)
 	require.NoError(t, err)
@@ -160,8 +166,10 @@ func TestAlternateDerivation(t *testing.T) {
 	wallet, account := initWallet(t, path)
 	defer wallet.Close()
 
-	require.Equal(t, account.PublicKey.Hex(), "0x044a5236e77ab81e094d7c6cfeac06d2e93fec455d01c7f80e22c592a89b44acebe99c2450425a184e5382362d5c52f5d996f12e73ccfb7694227f31b501e36ed7")
-	require.Equal(t, account.Address.Hex(), "0x5737A62f68305D0D94564BED79f0d5347EdC060e")
+	addr := crypto.PubkeyToAddress(*account.PublicKey)
+	pk := hex.EncodeToString(crypto.FromECDSAPub(account.PublicKey))
+	require.Equal(t, pk, "0x044a5236e77ab81e094d7c6cfeac06d2e93fec455d01c7f80e22c592a89b44acebe99c2450425a184e5382362d5c52f5d996f12e73ccfb7694227f31b501e36ed7")
+	require.Equal(t, account.Address.Hex(), addr.Hex())
 }
 
 func TestLedgerSignTx1(t *testing.T) {
@@ -170,7 +178,7 @@ func TestLedgerSignTx1(t *testing.T) {
 
 	addr := "0x3535353535353535353535353535353535353535"
 
-	tx, err := ledger.CreateTx(
+	tx, err := CreateTx(
 		3, addr, 10, big.NewInt(10), big.NewInt(10), make([]byte, 0),
 	)
 	require.NoError(t, err)
@@ -190,7 +198,7 @@ func TestLedgerSignTx2(t *testing.T) {
 
 	addr := "0x4646464646464646464646464646464646464646"
 
-	tx, err := ledger.CreateTx(
+	tx, err := CreateTx(
 		8, addr, 50, big.NewInt(5), big.NewInt(70), []byte{4, 6, 8, 10},
 	)
 	require.NoError(t, err)
@@ -211,7 +219,7 @@ func TestLedgerSignTx3(t *testing.T) {
 
 	addr := "0x4646464646464646464646464646464646464646"
 
-	tx, err := ledger.CreateTx(
+	tx, err := CreateTx(
 		8, addr, 50, big.NewInt(5), big.NewInt(70), []byte{4, 6, 8, 10},
 	)
 	require.NoError(t, err)
@@ -236,7 +244,7 @@ func TestLedgerSignTx4(t *testing.T) {
 	defer wallet.Close()
 
 	sendAddr := "0x4646464646464646464646464646464646464646"
-	tx, err := ledger.CreateTx(
+	tx, err := CreateTx(
 		8, sendAddr, 50, big.NewInt(5), big.NewInt(70), []byte{4, 6, 8, 10},
 	)
 	require.NoError(t, err)
@@ -332,4 +340,28 @@ func TestLedgerSignTyped3(t *testing.T) {
 	sigHex := hex.EncodeToString(sigBytes)
 
 	require.Equal(t, sigHex, "76984ce659f841975bdab7762ed9cb3c936791d1dcded3c0554147fca7accfdc543313669dcda04350990884e9e10c382fb20b722c123409a97c42ef6df617ca1c")
+}
+
+func CreateTx(
+	nonce uint64,
+	to string,
+	gas uint64,
+	gasPrice *big.Int,
+	amount *big.Int,
+	data []byte,
+) (*coretypes.Transaction, error) {
+	if !common.IsHexAddress(to) {
+		return nil, fmt.Errorf("invalid 'to' address: %s", to)
+	}
+
+	toAddr := common.HexToAddress(to)
+
+	return coretypes.NewTransaction(
+		nonce,
+		toAddr,
+		amount,
+		gas,
+		gasPrice,
+		data,
+	), nil
 }
