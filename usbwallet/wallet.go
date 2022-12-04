@@ -18,11 +18,12 @@
 package usbwallet
 
 import (
+	"bytes"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io"
 	"math/big"
-	"reflect"
 	"sync"
 	"time"
 
@@ -30,10 +31,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	coretypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/evmos/ethereum-ledger-go/accounts"
-	"github.com/evmos/ethereum-ledger-go/types"
 	usb "github.com/zondax/hid"
 )
 
@@ -61,7 +60,7 @@ type driver interface {
 
 	// Derive sends a derivation request to the USB device and returns the Ethereum
 	// address located on that path.
-	Derive(path gethaccounts.DerivationPath) (common.Address, types.PublicKey, error)
+	Derive(path gethaccounts.DerivationPath) (common.Address, *ecdsa.PublicKey, error)
 
 	// SignTx sends the transaction to the USB device and waits for the user to confirm
 	// or deny the transaction.
@@ -299,6 +298,7 @@ func (w *wallet) Derive(path gethaccounts.DerivationPath, pin bool) (accounts.Ac
 	if err != nil {
 		return accounts.Account{}, err
 	}
+
 	account := accounts.Account{
 		Address:   address,
 		PublicKey: publicKey,
@@ -422,31 +422,37 @@ func (w *wallet) SignTx(account accounts.Account, tx *coretypes.Transaction, cha
 	if err != nil {
 		return nil, err
 	}
+
 	if sender != account.Address {
-		return nil, fmt.Errorf("signer mismatch: expected %s, got %s", account.Address.Hex(), sender.Hex())
+		return nil, fmt.Errorf("signer mismatch: expected %s, got %s", account.Address, sender)
 	}
+
 	return signed, nil
 }
 
 func (w *wallet) verifyTypedDataSignature(account accounts.Account, rawData []byte, signature []byte) error {
+	if len(signature) != crypto.SignatureLength {
+		return fmt.Errorf("invalid signature length: %d", len(signature))
+	}
+
 	// Copy signature as it would otherwise be modified
 	sigCopy := make([]byte, len(signature))
 	copy(sigCopy, signature)
 
-	r := sigCopy[:32]
-	s := sigCopy[32:64]
-	v := sigCopy[64]
-
 	// Subtract 27 to match ECDSA standard
-	recV := v - 27
+	sigCopy[crypto.RecoveryIDOffset] -= 27
 
-	pubkey, err := secp256k1.RecoverPubkey(crypto.Keccak256(rawData), append(r[:], append(s[:], recV)...))
+	hash := crypto.Keccak256(rawData)
+
+	derivedPubkey, err := crypto.Ecrecover(hash, sigCopy)
 	if err != nil {
 		return err
 	}
 
-	if !reflect.DeepEqual(pubkey, account.PublicKey.Bytes()) {
-		return errors.New("Invalid public key returned in signature")
+	accountPK := crypto.FromECDSAPub(account.PublicKey)
+
+	if !bytes.Equal(derivedPubkey, accountPK) {
+		return errors.New("unauthorized: invalid signature verification")
 	}
 
 	return nil
@@ -455,23 +461,21 @@ func (w *wallet) verifyTypedDataSignature(account accounts.Account, rawData []by
 // SignTypedData signs a TypedData in EIP-712 format. This method is a wrapper
 // to call SignData after hashing and encoding the TypedData input
 func (w *wallet) SignTypedData(account accounts.Account, typedData apitypes.TypedData) ([]byte, error) {
-	domainSeparator, err := typedData.HashStruct("EIP712Domain", typedData.Domain.Map())
+	_, rawData, err := apitypes.TypedDataAndHash(typedData)
 	if err != nil {
 		return nil, err
 	}
-	typedDataHash, err := typedData.HashStruct(typedData.PrimaryType, typedData.Message)
-	if err != nil {
-		return nil, err
-	}
-	rawData := []byte(fmt.Sprintf("\x19\x01%s%s", string(domainSeparator), string(typedDataHash)))
-	sigBytes, err := w.signData(account, "data/typed", rawData)
+
+	rawDataBz := []byte(rawData)
+
+	sigBytes, err := w.signData(account, "data/typed", rawDataBz)
 	if err != nil {
 		return nil, err
 	}
 
 	// Verify recovered public key matches expected value
-	if err = w.verifyTypedDataSignature(account, rawData, sigBytes); err != nil {
-		return nil, errors.New(fmt.Sprintf("Signature verification failed, public key does not match: %v\n", err.Error()))
+	if err = w.verifyTypedDataSignature(account, rawDataBz, sigBytes); err != nil {
+		return nil, err
 	}
 
 	return sigBytes, nil
